@@ -94,6 +94,7 @@ if __name__ == "__main__": 으로 가게 됩니다.
             (3). forward 가 어디서 사용되는지
         3). 데이터는 dm (ChatDataModule) 에서 받아옵니다.
             (1). setup 에서 데이터를 지정하고 불러옵니다. 아마... 여기서 special token 을 지정해줘야하지 않을까요?
+        4). optimizer 또한 dm.configure_optimizer 에서 진행합니다.
          
     9. args 에 --chat 을 넣었으면, 유저와 대화를 시도합니다.   
     
