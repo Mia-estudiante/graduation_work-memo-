@@ -12,6 +12,98 @@ from transformers import (BartForConditionalGeneration,
                           PreTrainedTokenizerFast)
 from transformers.optimization import AdamW, get_cosine_schedule_with_warmup
 
+"""
+처음 프로젝트를 init 할 때, 명령어대로 입력해야 tokenizer 가 다운로드 되는 구조입니다.
+
+from kobart import get_pytorch_kobart_model, get_kobart_tokenizer
+
+이후
+get_kobart_tokenizer(".") 
+를 실행하면
+1. kobart_base_tokenizer_cased_xxx.....zip 이 생성됩니다.
+    아마 파라미터로 캐시 폴더를 입력받는 것 같고, "." 를 쓰게 되면 현재 폴더를 지정합니다.
+2. emji_tokenizer 라는 폴더가 생성됩니다.
+해당 파일은 토크나이저 압축 파일, emji_tokenizer 는 토크나이저의 압축을 푼 원본 모델이라고 생각됩니다. 
+실제 모델은 emji_tokenizer/model.json 이라고 추측되며, 현재 파일 실행 시 args 로 --tokenizer_path 로
+emji_tokenzer 를 지정하게 되면 내부의 model.json 을 불러들여 옵니다.
+KoBARTConditionalGeneration 클래스 실행 시에, args 를 제공해주면 self.tokenizer 로 해당 json 을 지정하게 됩니다.
+
+이후
+get_pytorch_kobart_model(cachedir=".")
+를 실행하면
+1. kobart_base_cased_xxx...zip 이 생성됩니다.
+    kobart tokenizer 와 동일하게, 입력 파라미터로 zip 저장하는 캐시 폴더를 입력받고, 현재 폴더에 저장합니다.
+2. kobart_from_pretrained 라는 폴더가 생성됩니다.
+해당 파일은 모델 압축 파일, kobart_from_pretrained 는 압축을 푼 원본 모델이라고 생각됩니다.
+실제 모델은 kobart_from_pretrained/pytorch_model.bin 이라고 추측되며, 현재 파일 실행 시 args 로 --model_path 를 주게 되면, 
+KoBARTConditionalGeneration 클래스 내부의 BartForConditionalGeneration 이라는 클래스를, 모델을 불러들여와 생성합니다.
+따라서, KoBARTConditionalGeneration.model 이 실제 KoBART 모델이 됩니다.
+
+
+
+이제, 이 파일을 실행시킬 때의 예제를 파악해 보겠습니다.
+$ python kobart_chit_chat.py  
+    --gradient_clip_val 1.0                 - 아직 파악 중입니다.
+    --max_epochs 3                          - 최대 학습 epoch 수입니다. 기본 3으로 설정되어 있는 것 같습니다.
+    --default_root_dir logs                 - 학습 시 일정한 체크포인트마다 로그를 생성하는데, 해당 로그의 저장 폴더를 지정합니다.
+    --model_path kobart_from_pretrained     - 위에서 설명한, kobart 모델 경로입니다.
+    --tokenizer_path emji_tokenizer         - 위에서 설명한, kobart tokenizer 경로입니다.
+    --chat                                  - chat 을 주게 되면, 학습 완료 후 종료하지 않고 유저의 입력에 따른 출력을 반환합니다.
+    --gpus 1                                - 실행할 때, 얼마나 많은 GPU 를 사용할 것인지입니다. 아쉽게도 koBART 모델은 GPU 기반으로 작동한다고 되어 있습니다.
+                                              CPU 기반으로는 작동하지 않는 것으로 파악됩니다.
+
+이제 실행하게 되면,
+if __name__ == "__main__": 으로 가게 됩니다.
+    1. Base 라는, 기본 pytorch lightning model 기반으로 한 클래스에서 parsing argument 를 추가합니다.
+        - batch size (--batch_size)         학습 배치 사이즈   
+        - learning_rate (--lr)              학습률
+        - warmup_ratio (--warmup_ratio)     warmup ratio...? 파악이 필요해 보입니다.
+        - model_path (--model_path)         koBART 모델 경로입니다.
+    2. ArgBase 라는 기본 클래스 내부 함수가 parsing argument 를 추가합니다.
+        - --train_file :        학습을 진행할 csv 파일 
+        - --test_file :         학습을 테스트할 csv 파일
+        - --tokenizer_path :    bart tokenizer 경로
+        - --batch_size :        배치 사이즈 파라미터 (기본 14)
+        - --max_seq_len :       토크나이저로 잘라냈을 때 입력할 수 있는 최대 토큰 
+    3. ChatDataModule 라는 클래스 내부 함수가 parsing argument 를 추가합니다.
+        - --num_workers :       데이터를 로딩할 때 사용할 워커 (아마 스레드) 수
+        
+    4. 이후, 받은 args 를 토대로 KoBARTConditionalGeneration 클래스의 인스턴스 생성
+        1). 모델 경로를 토대로 모델 생성 (self.model)
+        2). self.model.train() 으로 모델 학습 진행 (이미 사전학습되어있는 모델이기에 어떤 의미인지는 모름... 불분명한 호출)
+        3). beginning_of_sentence, end_of_sentence 토큰 정의
+        4). tokenizer 정의, tokenizer 경로 토대로 생성
+            (1). 여기서 eos / bos 토큰을 정의합니다. 저희가 추가하고자 하는 감성에 해당하는 special token 주입이 가능할까요?
+    
+    5. ChatDataModule 클래스의 인스턴스를 생성합니다.
+        1). 입력 파라미터 중 눈여겨봐야할 것은 tok_vocab 입니다. emji_tokenizer/model.json 이며, 해당 파일이 tokenizer 의 결과값으로 추정됩니다.
+    
+    6. ModelCheckpoint 를 init 합니다.
+        1). 학습 시 각 모델의 체크포인트마다 어떤 값을 모니터하고, 어떻게 저장할 지 정의해 놓고 있습니다.
+        
+    7. tb_logger, lr_logger 도 동일하게 로그를 찍는 데 존재하는 모듈이라고 생각합니다.
+    
+    8. trainer.fit 을 이용해 모델을 학습시킵니다. 중요하게 봐야 할 부분입니다.
+        1). 기본적으로, Base 모델은 pytorch lightning 의 LightningModule 을 사용했다는 것입니다. 
+            https://baeseongsu.github.io/posts/pytorch-lightning-introduction/ 를 참고했습니다.
+        2). KoBARTConditionalGeneration 은 총 2개의 step 에 대해 loop 을 설정했습니다.
+            (1). training 시에 step 마다 실행하는 training_step
+                - 각 batch 를 수행하고 loss 를 return 합니다.
+            (2). validation 시에 step 마다 실행하는 vaildation_step
+                - training 과 동일합니다.
+            (3). forward 가 어디서 사용되는지
+        3). 데이터는 dm (ChatDataModule) 에서 받아옵니다.
+            (1). setup 에서 데이터를 지정하고 불러옵니다. 아마... 여기서 special token 을 지정해줘야하지 않을까요?
+         
+    9. args 에 --chat 을 넣었으면, 유저와 대화를 시도합니다.   
+    
+    고민해봐야 할 점
+        BART 의 인코더 뒤에 FNN 을 붙여야하는데, 해당 부분이 koBART 에선 보이지 않습니다. 아마 모델을 그대로 불러오기만 해서 그런 것으로 생각됩니다.
+        다른 BART 구현체도 찾아봐야할 것 같습니다 (huggingface 같은 데에서 검색 필요)
+        
+        만약 KoBART 를 사용한다면, special token 을 저희가 직접 만들어서 넣어주는 수밖엔 없어보입니다.
+"""
+
 
 parser = argparse.ArgumentParser(description='KoBART Chit-Chat')
 
@@ -227,7 +319,9 @@ class Base(pl.LightningModule):
 
 class KoBARTConditionalGeneration(Base):
     def __init__(self, hparams, **kwargs):
+        # hparams 는 args 임 (main.py init 시 입력 파라미터)
         super(KoBARTConditionalGeneration, self).__init__(hparams, **kwargs)
+        # model_path 에서 kobart_from_pretrained 모델 주입
         self.model = BartForConditionalGeneration.from_pretrained(self.hparams.model_path)
         self.model.train()
         self.bos_token = '<s>'
