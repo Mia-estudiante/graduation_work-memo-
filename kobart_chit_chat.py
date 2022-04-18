@@ -147,7 +147,7 @@ class ArgsBase():
                             help='')
         parser.add_argument('--max_seq_len',
                             type=int,
-                            default=36,
+                            default=60,
                             help='max seq len')
         return parser
 
@@ -183,6 +183,8 @@ class ChatDataset(Dataset):
     def __getitem__(self, index):
         record = self.data.iloc[index]
         q, a = record['Q'], record['A']
+        # logger.warning(f"{q}|\t{a}|")
+        # logger.warning(f"{self.tokenizer.tokenize(q)}|\t{self.tokenizer.tokenize(a)}|")
         q_tokens = [self.bos_token] + \
             self.tokenizer.tokenize(q) + [self.eos_token]
         a_tokens = [self.bos_token] + \
@@ -258,9 +260,12 @@ class ChatDataModule(pl.LightningDataModule):
 
 
 class Base(pl.LightningModule):
-    def __init__(self, hparams, **kwargs) -> None:
+    def __init__(self, hparams: argparse.Namespace, **kwargs) -> None:
         super(Base, self).__init__()
-        self.hparams = hparams
+        new_params = hparams.__dict__
+        for key in new_params:
+            self.hparams[key] = new_params[key]
+        # self.hparams = hparams
 
     @staticmethod
     def add_model_specific_args(parent_parser):
@@ -321,6 +326,7 @@ class Base(pl.LightningModule):
 class KoBARTConditionalGeneration(Base):
     def __init__(self, hparams, **kwargs):
         # hparams 는 args 임 (main.py init 시 입력 파라미터)
+        print(hparams)
         super(KoBARTConditionalGeneration, self).__init__(hparams, **kwargs)
         # model_path 에서 kobart_from_pretrained 모델 주입
         self.model = BartForConditionalGeneration.from_pretrained(self.hparams.model_path)
@@ -329,7 +335,8 @@ class KoBARTConditionalGeneration(Base):
         self.eos_token = '</s>'
         self.tokenizer = PreTrainedTokenizerFast(
             tokenizer_file=os.path.join(self.hparams.tokenizer_path, 'model.json'),
-            bos_token=self.bos_token, eos_token=self.eos_token, unk_token='<unk>', pad_token='<pad>', mask_token='<mask>')
+            bos_token=self.bos_token, eos_token=self.eos_token, unk_token='<unk>', pad_token='<pad>', mask_token='<mask>',
+        )
 
     def forward(self, inputs):
         return self.model(input_ids=inputs['input_ids'],
@@ -351,7 +358,7 @@ class KoBARTConditionalGeneration(Base):
 
 
     def chat(self, text):
-        input_ids =  [self.tokenizer.bos_token_id] + self.tokenizer.encode(text) + [self.tokenizer.eos_token_id]
+        input_ids = [self.tokenizer.bos_token_id] + self.tokenizer.encode(text) + [self.tokenizer.eos_token_id]
         res_ids = self.model.generate(torch.tensor([input_ids]),
                                             max_length=self.hparams.max_seq_len,
                                             num_beams=5,
