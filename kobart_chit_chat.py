@@ -243,7 +243,7 @@ class ChatDataModule(pl.LightningDataModule):
     def train_dataloader(self):
         train = DataLoader(self.train,
                            batch_size=self.batch_size,
-                           num_workers=self.num_workers, shuffle=True)
+                           num_workers=self.num_workers, shuffle=False)
         return train
 
     def val_dataloader(self):

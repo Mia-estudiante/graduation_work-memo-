@@ -33,11 +33,13 @@ def refine_data(raw_file_loc: str, refine_file_loc: str):
             emotion = int(line["profile"]["emotion"]["type"][1:]) - 10
             for i in range(3):
                 question: str = line["talk"]["content"][f"HS0{i + 1}"]
+                question = question.replace("\xa0", " ").replace("\n", "")
                 question = question.strip()
                 response: str = line["talk"]["content"][f"SS0{i + 1}"]
+                response = response.replace("\xa0", " ").replace("\n", "")
                 response = response.strip()
 
-                if len(question) > 0 and len(response) > 0:
+                if len(question) > 10 and len(response) > 10:
 
                     refined_train_file.write(f"\n{question},{response},{emotion}")
 
