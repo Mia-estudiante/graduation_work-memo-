@@ -8,8 +8,10 @@ import pytorch_lightning as pl
 import torch
 from pytorch_lightning import loggers as pl_loggers
 from torch.utils.data import DataLoader, Dataset
-from transformers import (BartForConditionalGeneration,
-                          PreTrainedTokenizerFast)
+from bart import BartForConditionalGeneration
+from transformers import PreTrainedTokenizerFast
+# from transformers import (BartForConditionalGeneration,
+#                           PreTrainedTokenizerFast)
 from transformers.optimization import AdamW, get_cosine_schedule_with_warmup
 
 """

@@ -65,4 +65,4 @@ if __name__ == "__main__":
 
 
 
-    "python kobart_chit_chat.py --gradient_clip_val 1.0 --max_epochs 2 --default_root_dir logs --model_path kobart_from_pretrained --tokenizer_path emji_tokenizer --chat --train_file refined_sentimental/train.csv --test_file refined_sentimental/test.csv --gpus 1"
+"python kobart_chit_chat.py --gradient_clip_val 1.0 --max_epochs 2 --default_root_dir logs --model_path kobart_from_pretrained --tokenizer_path emji_tokenizer --chat --train_file refined_sentimental/train.csv --test_file refined_sentimental/test.csv --gpus 1"
