@@ -63,8 +63,12 @@ class CustomNNModel:
         hypothesis = self.model(batch_data)
         loss = self.criterion(hypothesis, answers)
         loss.requires_grad_(True)
-        loss.backward()
+        loss.backward(retain_graph=True)
         self.optimizer.step()
 
-        print(loss)
+        results = torch.argmax(hypothesis, dim=1)
+        # tensor([3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+        #         3, 3, 3, 3, 3, 3, 3, 3], device='cuda:0')
+        # 형식의 데이터
+        return results
 

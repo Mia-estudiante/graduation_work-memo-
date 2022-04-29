@@ -1213,17 +1213,9 @@ class BartModel(BartPretrainedModel):
 
         # print(len(encoder_outputs))           1
         # print(encoder_outputs[0].size())      32, 60 ,768
-        # print(encoder_outputs[0][0][0])
-        cls_datas = []
-        for i in range(32):
-            cls_datas.append(encoder_outputs[0][0][i].tolist())
-        cls_datas = torch.tensor(cls_datas).cuda()
 
-        # cls_outputs = encoder_outputs[:, 0, :]
-        # cls_datas = []
-        # for i in range(32):
-        #     cls_datas.append(encoder_outputs[i][0][0])
-        self.fnn_model.train_by_data_new(cls_datas, sentimental_data)
+        cls_outputs = encoder_outputs[0][:, 0, :]
+        fnn_outputs = self.fnn_model.train_by_data_new(cls_outputs, sentimental_data)
 
         # decoder outputs consists of (dec_features, past_key_value, dec_hidden, dec_attn)
         decoder_outputs = self.decoder(

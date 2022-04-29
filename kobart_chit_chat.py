@@ -14,6 +14,11 @@ from transformers import PreTrainedTokenizerFast
 #                           PreTrainedTokenizerFast)
 from transformers.optimization import AdamW, get_cosine_schedule_with_warmup
 
+
+import torch.nn.functional as F
+
+from utils import get_one_hot_encoding
+
 """
 처음 프로젝트를 init 할 때, 명령어대로 입력해야 tokenizer 가 다운로드 되는 구조입니다.
 
@@ -208,7 +213,7 @@ class ChatDataset(Dataset):
             'decoder_input_ids': np.array(decoder_input_id, dtype=np.int_),
             'decoder_attention_mask': np.array(decoder_attention_mask, dtype=np.float_),
             'labels': np.array(labels, dtype=np.int_),
-            'sentimental_data': np.array(record['label'], dtype=np.int_)
+            'sentimental_data': np.array(get_one_hot_encoding(record['label']), dtype=np.float_)
         }
 
 
