@@ -163,7 +163,8 @@ class ChatDataset(Dataset):
         self.max_seq_len = max_seq_len
         self.tokenizer = PreTrainedTokenizerFast(
             tokenizer_file=tok_vocab,
-            bos_token=self.bos_token, eos_token=self.eos_token, unk_token='<unk>', pad_token='<pad>', mask_token='<mask>')
+            cls_token=self.bos_token, # bos_token=self.bos_token, - 토크나이저의 cls 토큰을 다음과 같이 할당함.
+            eos_token=self.eos_token, unk_token='<unk>', pad_token='<pad>', mask_token='<mask>')
 
     def __len__(self):
         return len(self.data)
@@ -201,11 +202,14 @@ class ChatDataset(Dataset):
             while len(labels) < self.max_seq_len:
                 # for cross entropy loss masking
                 labels += [-100]
-        return {'input_ids': np.array(encoder_input_id, dtype=np.int_),
-                'attention_mask': np.array(encoder_attention_mask, dtype=np.float_),
-                'decoder_input_ids': np.array(decoder_input_id, dtype=np.int_),
-                'decoder_attention_mask': np.array(decoder_attention_mask, dtype=np.float_),
-                'labels': np.array(labels, dtype=np.int_)}
+        return {
+            'input_ids': np.array(encoder_input_id, dtype=np.int_),
+            'attention_mask': np.array(encoder_attention_mask, dtype=np.float_),
+            'decoder_input_ids': np.array(decoder_input_id, dtype=np.int_),
+            'decoder_attention_mask': np.array(decoder_attention_mask, dtype=np.float_),
+            'labels': np.array(labels, dtype=np.int_),
+            'sentimental_data': np.array(record['label'], dtype=np.int_)
+        }
 
 
 class ChatDataModule(pl.LightningDataModule):
@@ -341,11 +345,16 @@ class KoBARTConditionalGeneration(Base):
         )
 
     def forward(self, inputs):
-        return self.model(input_ids=inputs['input_ids'],
-                          attention_mask=inputs['attention_mask'],
-                          decoder_input_ids=inputs['decoder_input_ids'],
-                          decoder_attention_mask=inputs['decoder_attention_mask'],
-                          labels=inputs['labels'], return_dict=True)
+        # 205 번째 줄의 데이터를 그대로 넘겨줌.
+        return self.model(
+            input_ids=inputs['input_ids'],
+            attention_mask=inputs['attention_mask'],
+            decoder_input_ids=inputs['decoder_input_ids'],
+            decoder_attention_mask=inputs['decoder_attention_mask'],
+            labels=inputs['labels'],
+            return_dict=True,
+            sentimental_data=inputs['sentimental_data']
+        )
 
     def training_step(self, batch, batch_idx):
         outs = self(batch)

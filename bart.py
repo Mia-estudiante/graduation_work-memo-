@@ -24,6 +24,7 @@ import torch.utils.checkpoint
 from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
+from custom_fnn import CustomNNModel
 from custom_transformers.activations import ACT2FN
 from custom_transformers.modeling_outputs import (
     BaseModelOutput,
@@ -1119,6 +1120,9 @@ class BartModel(BartPretrainedModel):
         self.encoder = BartEncoder(config, self.shared)
         self.decoder = BartDecoder(config, self.shared)
 
+        # adept model
+        self.fnn_model = CustomNNModel(768, 6, 0.01)
+
         # Initialize weights and apply final processing
         self.post_init()
 
@@ -1161,6 +1165,7 @@ class BartModel(BartPretrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
+        sentimental_data: Optional[torch.LongTensor] = None
     ) -> Union[Tuple, Seq2SeqModelOutput]:
 
         # different to other models, Bart automatically creates decoder_input_ids from
@@ -1205,6 +1210,20 @@ class BartModel(BartPretrainedModel):
                 hidden_states=encoder_outputs[1] if len(encoder_outputs) > 1 else None,
                 attentions=encoder_outputs[2] if len(encoder_outputs) > 2 else None,
             )
+
+        # print(len(encoder_outputs))           1
+        # print(encoder_outputs[0].size())      32, 60 ,768
+        # print(encoder_outputs[0][0][0])
+        cls_datas = []
+        for i in range(32):
+            cls_datas.append(encoder_outputs[0][0][i].tolist())
+        cls_datas = torch.tensor(cls_datas).cuda()
+
+        # cls_outputs = encoder_outputs[:, 0, :]
+        # cls_datas = []
+        # for i in range(32):
+        #     cls_datas.append(encoder_outputs[i][0][0])
+        self.fnn_model.train_by_data_new(cls_datas, sentimental_data)
 
         # decoder outputs consists of (dec_features, past_key_value, dec_hidden, dec_attn)
         decoder_outputs = self.decoder(
@@ -1300,6 +1319,7 @@ class BartForConditionalGeneration(BartPretrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
+        sentimental_data: Optional[torch.Tensor] = None
     ) -> Union[Tuple, Seq2SeqLMOutput]:
         r"""
         labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
@@ -1319,6 +1339,7 @@ class BartForConditionalGeneration(BartPretrainedModel):
                     labels, self.config.pad_token_id, self.config.decoder_start_token_id
                 )
 
+        # model.forward
         outputs = self.model(
             input_ids,
             attention_mask=attention_mask,
@@ -1335,6 +1356,7 @@ class BartForConditionalGeneration(BartPretrainedModel):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
+            sentimental_data=sentimental_data
         )
         lm_logits = self.lm_head(outputs[0]) + self.final_logits_bias
 

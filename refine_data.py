@@ -30,7 +30,7 @@ def refine_data(raw_file_loc: str, refine_file_loc: str):
     with open(refine_file_loc, "w") as refined_train_file:
         refined_train_file.write("Q,A,label")
         for line in jsons:
-            emotion = int(line["profile"]["emotion"]["type"][1:]) - 10
+            emotion = int((int(line["profile"]["emotion"]["type"][1:]) - 10) / 10)
             for i in range(3):
                 question: str = line["talk"]["content"][f"HS0{i + 1}"]
                 question = question.replace("\xa0", " ").replace("\n", "")
