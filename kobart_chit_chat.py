@@ -213,7 +213,7 @@ class ChatDataset(Dataset):
             'decoder_input_ids': np.array(decoder_input_id, dtype=np.int_),
             'decoder_attention_mask': np.array(decoder_attention_mask, dtype=np.float_),
             'labels': np.array(labels, dtype=np.int_),
-            'sentimental_data': np.array(get_one_hot_encoding(record['label']), dtype=np.float_)
+            'sentimental_data': np.array(get_one_hot_encoding(record['label']), dtype=np.int_)
         }
 
 

@@ -1165,7 +1165,7 @@ class BartModel(BartPretrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-        sentimental_data: Optional[torch.DoubleTensor] = None
+        sentimental_data: Optional[torch.LongTensor] = None
     ) -> Union[Tuple, Seq2SeqModelOutput]:
 
         # different to other models, Bart automatically creates decoder_input_ids from
