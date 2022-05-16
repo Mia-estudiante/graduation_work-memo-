@@ -1215,7 +1215,12 @@ class BartModel(BartPretrainedModel):
         # print(encoder_outputs[0].size())      32, 60 ,768
 
         cls_outputs = encoder_outputs[0][:, 0, :]
-        fnn_outputs = self.fnn_model.train_by_data_new(cls_outputs, sentimental_data)
+        if sentimental_data is not None:
+            fnn_outputs, loss = self.fnn_model.train_by_data_new(cls_outputs, sentimental_data)
+        else:
+            loss = self.fnn_model.test_data(cls_outputs)
+        encoder_outputs[0][:, 0, :] = loss
+
 
         # decoder outputs consists of (dec_features, past_key_value, dec_hidden, dec_attn)
         decoder_outputs = self.decoder(

@@ -5,6 +5,7 @@ from torch import optim
 import torch.nn.functional as F
 from torch.utils.data import TensorDataset, DataLoader
 
+
 class NNModel(nn.Module):
     def __init__(self, input_dim, class_size):
         super(NNModel, self).__init__()
@@ -25,6 +26,8 @@ class NNModel(nn.Module):
 class CustomNNModel:
 
     def __init__(self, input_dim, class_size, lr):
+        self.first = True
+        self.loss_maximum = 0
         self.device = "cuda" # if torch.cuda.is_available() else "cpu"
         self.model = NNModel(input_dim, class_size).to(self.device)
         self.criterion = nn.CrossEntropyLoss().to(self.device)
@@ -36,7 +39,6 @@ class CustomNNModel:
         dataset = TensorDataset(batch_data, answers)
         dataloader = DataLoader(dataset, shuffle=False, batch_size=32)
         for (step, batch) in enumerate(dataloader):
-
 
             self.model.train()
             batch = tuple(t.cuda() for t in batch)
@@ -66,9 +68,27 @@ class CustomNNModel:
         loss.backward(retain_graph=True)
         self.optimizer.step()
 
+        if self.first:
+            self.loss_maximum = loss
+            self.first = False
+        real_loss = (loss / self.loss_maximum).clone().detach()
+
         results = torch.argmax(hypothesis, dim=1)
         # tensor([3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
         #         3, 3, 3, 3, 3, 3, 3, 3], device='cuda:0')
         # 형식의 데이터
-        return results
+        return results, real_loss
+
+    def test_data(self, batch_data):
+        self.model.train()
+        self.optimizer.zero_grad()
+
+        batch_data = batch_data.view(-1, self.input_dim).to(self.device)
+
+        hypothesis = self.model(batch_data)
+        answer = torch.argmax(hypothesis, dim=1)
+        loss = self.criterion(hypothesis, answer)
+        real_loss = (loss / self.loss_maximum).clone().detach()
+        return real_loss
+
 
